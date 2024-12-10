@@ -496,7 +496,7 @@ class TaskCard extends StatelessWidget {
                 final subtask = task.subtasks[index];
                 return Consumer<TaskProvider>(
                   builder: (context, taskProvider, child) {
-                    return CheckboxListTile(
+                    return ListTile(
                       title: Text(
                         subtask.title,
                         style: TextStyle(
@@ -505,10 +505,31 @@ class TaskCard extends StatelessWidget {
                               : null,
                         ),
                       ),
-                      value: subtask.isCompleted,
-                      onChanged: (value) {
-                        taskProvider.toggleSubtaskComplete(task, subtask);
-                      },
+                      leading: InkWell(
+                        onTap: () {
+                          taskProvider.toggleSubtaskComplete(task, subtask);
+                        },
+                        child: Container(
+                          width: 24,
+                          height: 24,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: subtask.isCompleted
+                                  ? Colors.green
+                                  : Colors.grey,
+                              width: 2,
+                            ),
+                          ),
+                          child: subtask.isCompleted
+                              ? Icon(
+                                  Icons.check,
+                                  size: 16,
+                                  color: Colors.green,
+                                )
+                              : null,
+                        ),
+                      ),
                     );
                   },
                 );
