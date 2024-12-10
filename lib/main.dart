@@ -5,6 +5,7 @@ import 'models/checklist.dart';
 import 'models/task.dart';
 import 'models/subtask.dart';
 import 'pages/add_task_page.dart';
+import 'pages/edit_task_page.dart';
 
 void main() {
   runApp(
@@ -38,73 +39,24 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      drawer: _buildDrawer(context),
+      appBar: AppBar(
+        title: Consumer<TaskProvider>(
+          builder: (context, taskProvider, child) {
+            return Text(taskProvider.selectedChecklist?.title ?? '待办事项');
+          },
+        ),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.more_horiz, color: Colors.grey),
+            onPressed: () {
+              // 更多设置
+            },
+          ),
+        ],
+      ),
       body: Column(
         children: [
-          // 清单横向滚动区域（包含AppBar区域）
-          Container(
-            height: MediaQuery.of(context).padding.top + 150 // 状态栏高度 + 卡片高度
-            child: Stack(
-              children: [
-                // AppBar
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  child: Container(
-                    padding: EdgeInsets.only(
-                      top: MediaQuery.of(context).padding.top,
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        IconButton(
-                          icon: Icon(Icons.more_horiz, color: Colors.grey),
-                          onPressed: () {
-                            // 更多设置
-                          },
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                // 清单列表
-                Positioned(
-                  top: MediaQuery.of(context).padding.top,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: Consumer<TaskProvider>(
-                    builder: (context, taskProvider, child) {
-                      return PageView.builder(
-                        controller: _pageController,
-                        itemCount:
-                            taskProvider.checklists.length + 1, // 只在最右添加新建按钮
-                        onPageChanged: (index) {
-                          if (index < taskProvider.checklists.length) {
-                            taskProvider.setSelectedChecklist(
-                                taskProvider.checklists[index]);
-                          } else {
-                            _showAddChecklistDialog(context, taskProvider);
-                          }
-                        },
-                        itemBuilder: (context, index) {
-                          if (index == taskProvider.checklists.length) {
-                            // 只在最右显示添加按钮
-                            return _buildAddChecklistCard();
-                          }
-
-                          final checklist = taskProvider.checklists[index];
-                          return _buildChecklistCard(
-                              context, checklist, taskProvider);
-                        },
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-
           // 子清单标签栏
           Container(
             height: 50,
@@ -144,7 +96,6 @@ class HomePage extends StatelessWidget {
               },
             ),
           ),
-
           // 任务列表
           Expanded(
             child: Consumer<TaskProvider>(
@@ -175,6 +126,70 @@ class HomePage extends StatelessWidget {
           );
         },
         child: Icon(Icons.add),
+      ),
+    );
+  }
+
+  // 构建抽屉菜单
+  Widget _buildDrawer(BuildContext context) {
+    return Drawer(
+      child: Consumer<TaskProvider>(
+        builder: (context, taskProvider, child) {
+          return ListView(
+            padding: EdgeInsets.zero,
+            children: [
+              DrawerHeader(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).primaryColor,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Text(
+                      'Done It!',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      '任务清单管理',
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.8),
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // 清单列表
+              ...taskProvider.checklists.map((checklist) {
+                return ListTile(
+                  leading: Icon(Icons.list),
+                  title: Text(checklist.title),
+                  selected: checklist == taskProvider.selectedChecklist,
+                  onTap: () {
+                    taskProvider.setSelectedChecklist(checklist);
+                    Navigator.pop(context); // 关闭抽屉
+                  },
+                );
+              }),
+              // 添加清单按钮
+              Divider(),
+              ListTile(
+                leading: Icon(Icons.add),
+                title: Text('新建清单'),
+                onTap: () {
+                  Navigator.pop(context); // 先关闭抽屉
+                  _showAddChecklistDialog(context, taskProvider);
+                },
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -338,6 +353,13 @@ class TaskCard extends StatelessWidget {
 
   const TaskCard({Key? key, required this.task}) : super(key: key);
 
+  double _calculateProgress() {
+    if (task.subtasks.isEmpty) return 0.0;
+    int completedCount =
+        task.subtasks.where((subtask) => subtask.isCompleted).length;
+    return completedCount / task.subtasks.length;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -353,13 +375,95 @@ class TaskCard extends StatelessWidget {
                     task.isCompleted ? TextDecoration.lineThrough : null,
               ),
             ),
-            trailing: Text(
-              '${task.subtasks.where((st) => st.isCompleted).length}/${task.subtasks.length}',
-              style: TextStyle(color: Colors.grey),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: Icon(Icons.edit, color: Colors.grey),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => EditTaskPage(task: task),
+                      ),
+                    );
+                  },
+                ),
+                Consumer<TaskProvider>(
+                  builder: (context, taskProvider, child) {
+                    return IconButton(
+                      icon: Icon(
+                        task.isCompleted
+                            ? Icons.check_circle
+                            : Icons.circle_outlined,
+                        color: task.isCompleted ? Colors.green : Colors.grey,
+                      ),
+                      onPressed: () {
+                        taskProvider.toggleTaskComplete(task);
+                      },
+                    );
+                  },
+                ),
+              ],
             ),
           ),
+          // 显示任务描述（如果有）
+          if (task.description?.isNotEmpty ?? false)
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Text(
+                task.description!,
+                style: TextStyle(color: Colors.grey[600]),
+              ),
+            ),
+          // 如果有子任务，显示进度条和子任务列表
           if (task.subtasks.isNotEmpty) ...[
             Divider(),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Stack(
+                children: [
+                  // 背景进度条（显示间隔）
+                  Container(
+                    height: 8,
+                    child: Row(
+                      children: List.generate(
+                        task.subtasks.length,
+                        (index) => Expanded(
+                          child: Container(
+                            margin: EdgeInsets.symmetric(horizontal: 1),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[200],
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  // 实际进度条
+                  Container(
+                    height: 8,
+                    child: Row(
+                      children: List.generate(
+                        task.subtasks.length,
+                        (index) => Expanded(
+                          child: Container(
+                            margin: EdgeInsets.symmetric(horizontal: 1),
+                            decoration: BoxDecoration(
+                              color: task.subtasks[index].isCompleted
+                                  ? Colors.blue
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
             ListView.builder(
               shrinkWrap: true,
               physics: NeverScrollableScrollPhysics(),
@@ -379,9 +483,7 @@ class TaskCard extends StatelessWidget {
                       ),
                       value: subtask.isCompleted,
                       onChanged: (value) {
-                        if (value != null) {
-                          taskProvider.toggleSubtaskComplete(task, subtask);
-                        }
+                        taskProvider.toggleSubtaskComplete(task, subtask);
                       },
                     );
                   },
@@ -406,6 +508,23 @@ class TaskCard extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: task.priority.color,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    SizedBox(width: 8),
+                    Text(
+                      '优先级: ${task.priority.toString().split('.').last}',
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  ],
+                ),
                 Text(
                   '优先级: ${task.priority.toString().split('.').last}',
                   style: TextStyle(color: Colors.grey),

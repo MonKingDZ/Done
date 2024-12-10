@@ -29,7 +29,24 @@ class TaskProvider with ChangeNotifier {
   }
 
   void toggleSubtaskComplete(Task task, Subtask subtask) {
-    subtask.complete();
+    // 切换子任务的完成状态
+    subtask.isCompleted = !subtask.isCompleted;
+    subtask.completedAt = subtask.isCompleted ? DateTime.now() : null;
+
+    // 检查是否所有子任务都已完成
+    bool allSubtasksCompleted =
+        task.subtasks.every((subtask) => subtask.isCompleted);
+
+    // 如果所有子任务都完成了，自动完成主任务
+    if (allSubtasksCompleted && !task.isCompleted) {
+      task.complete();
+    }
+    // 如果有任何子任务未完成，确保主任务也标记为未完成
+    else if (!allSubtasksCompleted && task.isCompleted) {
+      task.isCompleted = false;
+      task.completedAt = null;
+    }
+
     notifyListeners();
   }
 
@@ -98,6 +115,30 @@ class TaskProvider with ChangeNotifier {
       // 自动选择新创建的子清单
       setSelectedSublist(newSublist);
       notifyListeners();
+    }
+  }
+
+  void toggleTaskComplete(Task task) {
+    task.isCompleted = !task.isCompleted;
+    task.completedAt = task.isCompleted ? DateTime.now() : null;
+
+    // 当任务完成状态改变时，同步更新所有子任务状态
+    for (var subtask in task.subtasks) {
+      subtask.isCompleted = task.isCompleted;
+      subtask.completedAt = task.isCompleted ? DateTime.now() : null;
+    }
+
+    notifyListeners();
+  }
+
+  void updateTask(Task updatedTask) {
+    if (_selectedSublist != null) {
+      final index =
+          _selectedSublist!.tasks.indexWhere((t) => t.id == updatedTask.id);
+      if (index != -1) {
+        _selectedSublist!.tasks[index] = updatedTask;
+        notifyListeners();
+      }
     }
   }
 }

@@ -1,11 +1,25 @@
 import 'subtask.dart';
+import 'package:flutter/material.dart';
 
 enum Priority { low, medium, high }
 
+extension PriorityColor on Priority {
+  Color get color {
+    switch (this) {
+      case Priority.high:
+        return Colors.red;
+      case Priority.medium:
+        return Colors.orange;
+      case Priority.low:
+        return Colors.green;
+    }
+  }
+}
+
 class Task {
   final String id;
-  final String title;
-  final String? description;
+  String title;
+  String? description;
   final List<String> tags;
   final DateTime createdAt;
   final DateTime dueDate;
@@ -32,5 +46,11 @@ class Task {
   void complete() {
     isCompleted = true;
     completedAt = DateTime.now();
+    for (var subtask in subtasks) {
+      if (!subtask.isCompleted) {
+        subtask.isCompleted = true;
+        subtask.completedAt = DateTime.now();
+      }
+    }
   }
 }

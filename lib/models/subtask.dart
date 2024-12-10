@@ -10,9 +10,4 @@ class Subtask {
     this.isCompleted = false,
     this.completedAt,
   });
-
-  void complete() {
-    isCompleted = true;
-    completedAt = DateTime.now();
-  }
 }
