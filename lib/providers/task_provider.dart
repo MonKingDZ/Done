@@ -7,6 +7,8 @@ class TaskProvider with ChangeNotifier {
   List<Checklist> _checklists = [];
   Checklist? _selectedChecklist;
   Sublist? _selectedSublist;
+  Task? _lastDeletedTask;
+  String? _lastDeletedTaskSublistId;
 
   List<Checklist> get checklists => _checklists;
   Checklist? get selectedChecklist => _selectedChecklist;
@@ -139,6 +141,26 @@ class TaskProvider with ChangeNotifier {
         _selectedSublist!.tasks[index] = updatedTask;
         notifyListeners();
       }
+    }
+  }
+
+  void deleteTask(Task task) {
+    if (_selectedSublist != null) {
+      _lastDeletedTask = task;
+      _lastDeletedTaskSublistId = _selectedSublist!.id;
+      _selectedSublist!.tasks.remove(task);
+      notifyListeners();
+    }
+  }
+
+  void undoDeleteTask() {
+    if (_lastDeletedTask != null && _lastDeletedTaskSublistId != null) {
+      if (_selectedSublist?.id == _lastDeletedTaskSublistId) {
+        _selectedSublist!.tasks.add(_lastDeletedTask!);
+        notifyListeners();
+      }
+      _lastDeletedTask = null;
+      _lastDeletedTaskSublistId = null;
     }
   }
 }

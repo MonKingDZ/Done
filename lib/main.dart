@@ -110,7 +110,35 @@ class HomePage extends StatelessWidget {
                   padding: EdgeInsets.all(16),
                   itemCount: taskProvider.currentTasks.length,
                   itemBuilder: (context, index) {
-                    return TaskCard(task: taskProvider.currentTasks[index]);
+                    return Dismissible(
+                      key: Key(taskProvider.currentTasks[index].id),
+                      background: Container(
+                        color: Colors.red,
+                        alignment: Alignment.centerRight,
+                        padding: EdgeInsets.only(right: 16),
+                        child: Icon(
+                          Icons.delete,
+                          color: Colors.white,
+                        ),
+                      ),
+                      direction: DismissDirection.endToStart,
+                      onDismissed: (direction) {
+                        taskProvider
+                            .deleteTask(taskProvider.currentTasks[index]);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('任务已删除'),
+                            action: SnackBarAction(
+                              label: '撤销',
+                              onPressed: () {
+                                taskProvider.undoDeleteTask();
+                              },
+                            ),
+                          ),
+                        );
+                      },
+                      child: TaskCard(task: taskProvider.currentTasks[index]),
+                    );
                   },
                 );
               },
@@ -360,6 +388,14 @@ class TaskCard extends StatelessWidget {
     return completedCount / task.subtasks.length;
   }
 
+  String _formatDate(DateTime date) {
+    return '${date.month}/${date.day}';
+  }
+
+  String _formatDateTime(DateTime date) {
+    return '${date.month}/${date.day} ${date.hour}:${date.minute}';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -373,6 +409,15 @@ class TaskCard extends StatelessWidget {
               style: TextStyle(
                 decoration:
                     task.isCompleted ? TextDecoration.lineThrough : null,
+              ),
+            ),
+            subtitle: Text(
+              task.isCompleted
+                  ? '已完成 ${_formatDateTime(task.completedAt!)}'
+                  : _formatDate(task.dueDate),
+              style: TextStyle(
+                color: task.isCompleted ? Colors.green : Colors.grey,
+                fontSize: 12,
               ),
             ),
             trailing: Row(
@@ -418,47 +463,26 @@ class TaskCard extends StatelessWidget {
             ),
           // 如果有子任务，显示进度条和子任务列表
           if (task.subtasks.isNotEmpty) ...[
-            Divider(),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Stack(
                 children: [
-                  // 背景进度条（显示间隔）
+                  // 背景进度条
                   Container(
-                    height: 8,
-                    child: Row(
-                      children: List.generate(
-                        task.subtasks.length,
-                        (index) => Expanded(
-                          child: Container(
-                            margin: EdgeInsets.symmetric(horizontal: 1),
-                            decoration: BoxDecoration(
-                              color: Colors.grey[200],
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                          ),
-                        ),
-                      ),
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[200],
+                      borderRadius: BorderRadius.circular(2),
                     ),
                   ),
-                  // 实际进度条
+                  // 完成进度条
                   Container(
-                    height: 8,
-                    child: Row(
-                      children: List.generate(
-                        task.subtasks.length,
-                        (index) => Expanded(
-                          child: Container(
-                            margin: EdgeInsets.symmetric(horizontal: 1),
-                            decoration: BoxDecoration(
-                              color: task.subtasks[index].isCompleted
-                                  ? Colors.blue
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                          ),
-                        ),
-                      ),
+                    height: 4,
+                    width: MediaQuery.of(context).size.width *
+                        _calculateProgress(),
+                    decoration: BoxDecoration(
+                      color: task.isCompleted ? Colors.green : Colors.blue,
+                      borderRadius: BorderRadius.circular(2),
                     ),
                   ),
                 ],
@@ -493,46 +517,29 @@ class TaskCard extends StatelessWidget {
           ],
           Padding(
             padding: EdgeInsets.all(8),
-            child: Wrap(
-              spacing: 8,
-              children: task.tags.map((tag) {
-                return Chip(
-                  label: Text(tag),
-                  backgroundColor: Colors.blue.withOpacity(0.1),
-                );
-              }).toList(),
-            ),
-          ),
-          Padding(
-            padding: EdgeInsets.all(8),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 12,
-                      height: 12,
-                      decoration: BoxDecoration(
-                        color: task.priority.color,
-                        shape: BoxShape.circle,
+                Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: task.priority.color,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                SizedBox(width: 8),
+                Text(
+                  task.priority.toString().split('.').last,
+                  style: TextStyle(color: Colors.grey),
+                ),
+                SizedBox(width: 16),
+                ...task.tags.map((tag) => Padding(
+                      padding: EdgeInsets.only(right: 8),
+                      child: Chip(
+                        label: Text(tag),
+                        backgroundColor: Colors.blue.withOpacity(0.1),
                       ),
-                    ),
-                    SizedBox(width: 8),
-                    Text(
-                      '优先级: ${task.priority.toString().split('.').last}',
-                      style: TextStyle(color: Colors.grey),
-                    ),
-                  ],
-                ),
-                Text(
-                  '优先级: ${task.priority.toString().split('.').last}',
-                  style: TextStyle(color: Colors.grey),
-                ),
-                Text(
-                  '截止日期: ${task.dueDate.toString().split(' ')[0]}',
-                  style: TextStyle(color: Colors.grey),
-                ),
+                    )),
               ],
             ),
           ),
